@@ -11,22 +11,31 @@ import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
+
+import android.util.Log;
+
 import java.net.URLConnection;
 
 import android.net.Uri;
+
 import android.app.Activity;
+
 import android.content.Intent;
 import android.content.Context;
+import android.content.ContentResolver;
+
 import android.os.Build;
 import android.os.storage.StorageManager;
 import android.os.storage.StorageVolume;
-import android.content.ContentResolver;
-import android.support.v4.provider.DocumentFile;
+
 import android.text.TextUtils;
+
 import android.provider.DocumentsContract;
 import android.provider.DocumentsContract.Document;
+
 import android.database.Cursor;
-import android.util.Log;
+
+import androidx.documentfile.provider.DocumentFile;
 
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CallbackContext;
@@ -35,6 +44,7 @@ import org.apache.cordova.CordovaWebView;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.codec.binary.Base64;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -317,15 +327,22 @@ public class SDcard extends CordovaPlugin {
           DocumentFile file = getFile(filename);
 
           if (file.canWrite()) {
-
             OutputStream op = context.getContentResolver().openOutputStream(file.getUri(), "rwt");
-            PrintWriter pw = new PrintWriter(op, true);
 
-            pw.print(content);
-            pw.flush();
-            pw.close();
+            if (Base64.isBase64(content)) {
+
+              byte[] contentAsByte = Base64.decodeBase64(content);
+              op.write(contentAsByte);
+
+            } else {
+              PrintWriter pw = new PrintWriter(op, true);
+
+              pw.print(content);
+              pw.flush();
+              pw.close();
+            }
+
             op.close();
-
             callback.success("OK");
 
           } else {
@@ -723,17 +740,17 @@ public class SDcard extends CordovaPlugin {
   }
 
   private DocumentFile getFile(String filePath) {
-        Uri fileUri = Uri.parse(filePath);
-        DocumentFile documentFile = null;
-        
-        if (filePath.matches("file:///(.*)")) {
-            File file = new File(fileUri.getPath());
-            documentFile = DocumentFile.fromFile(file);
-        } else {
-            documentFile = DocumentFile.fromSingleUri(this.context, Uri.parse(filePath));
-        }
+    Uri fileUri = Uri.parse(filePath);
+    DocumentFile documentFile = null;
 
-        return documentFile;
+    if (filePath.matches("file:///(.*)")) {
+      File file = new File(fileUri.getPath());
+      documentFile = DocumentFile.fromFile(file);
+    } else {
+      documentFile = DocumentFile.fromSingleUri(this.context, Uri.parse(filePath));
+    }
+
+    return documentFile;
   }
 
   private void takePermission(Uri uri) {
